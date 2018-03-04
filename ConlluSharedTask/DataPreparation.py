@@ -3,9 +3,10 @@ import re
 import pickle
 
 
-def extract_pairs(ud_file, output_file):
+def extract_pairs(ud_file, output_file, output_file2):
 
-    nn_input = []
+    nn1_input = []
+    nn2_input = []
 
     root = ["ROOT", "ROOT", "ROOT", -1, "ROOT"]
     start1 = ["START-1", "START-1", "START-1", -1, "START-1"]
@@ -14,19 +15,21 @@ def extract_pairs(ud_file, output_file):
     end2 = ["END+2", "END+2", "END+2", -1, "END+2"]
 
     sent = [root]
+    tree = []
 
     with open(ud_file, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
 
-            if line and not line.startswith("#"):
+            if line:
+                if not line.startswith("#"):
 
-                split = re.split(r'\s+', line)
+                    split = re.split(r'\s+', line)
 
-                if len(split) >= 7:
-                    if "-" not in split[0]:
-                        word = [split[1], split[3], split[5], int(split[6]), split[7]]
-                        sent.append(word)
+                    if len(split) >= 7:
+                        if "-" not in split[0]:
+                            word = [split[1], split[3], split[5], int(split[6]), split[7]]
+                            sent.append(word)
             else:
                 context_left12 = None
                 context_left11 = None
@@ -197,11 +200,38 @@ def extract_pairs(ud_file, output_file):
                                     is_connected,
                                     label,
                                     distance]
-                        nn_input.append(combined)
+                        nn1_input.append(combined)
 
+                    cur = word1
+                    nxt = cur[3]
+                    path_to_word = []
+
+                    while nxt != -1:
+                        tmp = [cur[0], sent[nxt][0], cur[4]]
+                        path_to_word.append(tmp)
+
+                        cur = sent[nxt]
+                        nxt = cur[3]
+
+                    tree.append(path_to_word)
+
+                removable = []
+
+                truncated_tree = []
+
+                for partial_path in tree:
+                    for connection in partial_path:
+                        if connection not in removable:
+
+                            truncated_tree.append(connection)
+                            removable.append(connection)
+
+                print(truncated_tree)
+
+                nn2_input.append(truncated_tree)
+
+                tree = []
                 sent = [root]
 
-    for l in nn_input:
-        print(l)
-
-    pickle.dump(nn_input, open(output_file, 'wb'))
+    pickle.dump(nn1_input, open(output_file, 'wb'))
+    pickle.dump(nn2_input, open(output_file2, 'wb'))
